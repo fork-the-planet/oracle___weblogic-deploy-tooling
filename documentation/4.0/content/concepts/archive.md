@@ -238,6 +238,14 @@ wlsdeploy/structuredApplications/myApp/plan/WEB-INF/weblogic.xml
 wlsdeploy/structuredApplications/myApp/plan/AppFileOverrides/updated.properties
 ```
 
+{{% notice note %}}
+If the AppFileOverrides directory is used, you must specify the PlanDir and PlanPath separately in the model so that the AppFileOverrides directory entries are found and applied. For the above example, this would be:
+```
+PlanDir: wlsdeploy/structuredApplications/myApp/plan
+PlanPath: plan.xml
+```
+{{% /notice %}}
+
 #### `wlsdeploy/wrcExtension`
 The directory into which the WebLogic Remote Console extension WAR file (i.e., `console-rest-ext-6.0.war`) is stored.
 Create Domain, Update Domain, and Deploy Applications tools place any file in this directory into the
