@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 
@@ -25,6 +25,8 @@ ADMINISTRATION_PROTOCOL = 'AdministrationProtocol'
 ADMIN_USERNAME = 'AdminUserName'
 APP_DEPLOYMENTS = 'appDeployments'
 APP_DIR = 'AppDir'
+APP_VERSION = 'AppVersion'
+PRODUCTION_REDEPLOYMENTS = 'ProductionRedeployments'
 APPEND = 'append'
 APPLICATION = 'Application'
 ATP_DEFAULT_TABLESPACE = 'atp.default.tablespace'  # deprecated field name in 4.0
@@ -441,6 +443,8 @@ PASSWORD = 'Password'
 PATH_TO_SCRIPT = 'PathToScript'
 PLAN_STAGING_MODE = 'PlanStagingMode'
 PLUGIN_TYPE = 'PluginType'
+RETIRE_GRACEFULLY = 'RetireGracefully'
+RETIRE_TIMEOUT = 'RetireTimeout'
 RESOURCE_CLASS = 'ResourceClass'
 SECURITY_DD_MODEL = 'SecurityDDModel'
 SET_OPTION_APP_DIR = 'AppDir'
@@ -453,6 +457,7 @@ TAGS = 'Tags'
 TARGETS = 'Targets'
 URL = 'URL'
 USER_PREFERRED_SERVER = 'UserPreferredServer'
+VERSION_IDENTIFIER = 'VersionIdentifier'
 
 # Default Security Provider names and types
 DEFAULT_ADJUDICATOR_NAME = 'DefaultAdjudicator'

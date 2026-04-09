@@ -47,7 +47,7 @@ for more information.
 ### Top-level model sections
 The tooling has five top-level model sections:
 
-- `domainInfo`     - The location where special information not represented in WLST is specified (for example, the libraries that go in `$DOMAIN_HOME/lib`).
+- `domainInfo`     - The location where special information not represented in WLST is specified (for example, the libraries that go in `$DOMAIN_HOME/lib`, or online deployment metadata such as `ProductionRedeployments`).
 - `topology`       - The location where servers, clusters, machines, server templates, and other domain-level configuration is specified.
 - `resources`      - The location where resources and services are specified (for example, data sources, JMS, WLDF).
 - `appDeployments` - The location where shared libraries and applications are specified.

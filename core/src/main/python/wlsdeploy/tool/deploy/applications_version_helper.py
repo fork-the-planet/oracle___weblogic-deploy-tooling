@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2024, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import os
@@ -134,6 +134,37 @@ class ApplicationsVersionHelper(object):
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name, result=versioned_name)
         return versioned_name
+
+    def get_application_archive_version(self, source_path, module_type=None):
+        """
+        Get the archive version of the application from its manifest, if present.
+        :param source_path: the SourcePath value of the application
+        :param module_type: optional argument to specify the module type being deployed
+        :return: the application version from the archive manifest, or None
+        :raises: DeployException: if an error occurs
+        """
+        _method_name = 'get_application_archive_version'
+        self.logger.entering(source_path, module_type, class_name=self._class_name, method_name=_method_name)
+
+        archive_version = None
+        if not self.is_module_type_app_module(module_type) and not string_utils.is_empty(source_path):
+            try:
+                manifest = self.__get_manifest(source_path)
+                if manifest is not None:
+                    archive_version = manifest.getMainAttributes().getValue(self._APP_VERSION_MANIFEST_KEY)
+            except (IOException, ZipException, IllegalStateException), e:
+                if self.archive_helper and self.archive_helper.is_path_into_archive(source_path):
+                    key = 'WLSDPLY-09329'
+                else:
+                    key = 'WLSDPLY-09354'
+
+                ex = exception_helper.create_deploy_exception(key, source_path, source_path,
+                                                              str_helper.to_string(e), error=e)
+                self.logger.throwing(ex, class_name=self._class_name, method_name=_method_name)
+                raise ex
+
+        self.logger.exiting(class_name=self._class_name, method_name=_method_name, result=archive_version)
+        return archive_version
 
     def is_module_type_app_module(self, module_type):
         if module_type in [ 'jms', 'jdbc', 'wldf']:

@@ -70,6 +70,7 @@ from wlsdeploy.aliases.model_constants import ODL_CONFIGURATION
 from wlsdeploy.aliases.model_constants import OHS
 from wlsdeploy.aliases.model_constants import OPSS_INITIALIZATION
 from wlsdeploy.aliases.model_constants import PLUGIN_DEPLOYMENT
+from wlsdeploy.aliases.model_constants import PRODUCTION_REDEPLOYMENTS
 from wlsdeploy.aliases.model_constants import RCU_DB_INFO
 from wlsdeploy.aliases.model_constants import REMOTE_CONSOLE_HELPER
 from wlsdeploy.aliases.model_constants import RESOURCE_MANAGER
@@ -189,6 +190,7 @@ class AliasEntries(object):
 
     __domain_info_top_level_folders = [
         OPSS_INITIALIZATION,
+        PRODUCTION_REDEPLOYMENTS,
         RCU_DB_INFO,
         WLS_POLICIES,
         WLS_ROLES,

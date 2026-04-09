@@ -1,5 +1,5 @@
 """
-Copyright (c) 2021, 2025, Oracle and/or its affiliates.
+Copyright (c) 2021, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 from java.util import Properties
@@ -13,6 +13,7 @@ from wlsdeploy.aliases.location_context import LocationContext
 from wlsdeploy.aliases.model_constants import APPLICATION
 from wlsdeploy.aliases.model_constants import CRD_MODEL_SECTIONS
 from wlsdeploy.aliases.model_constants import LIBRARY
+from wlsdeploy.aliases.model_constants import PRODUCTION_REDEPLOYMENTS
 from wlsdeploy.logging.platform_logger import PlatformLogger
 from wlsdeploy.util import dictionary_utils
 from wlsdeploy.util import model_helper
@@ -330,6 +331,10 @@ class ModelComparer(object):
         :param location: the location for attributes in the specified folders
         """
         if current_value != past_value:
+            if key == PRODUCTION_REDEPLOYMENTS:
+                change_folder[key] = current_value
+                return
+
             attribute_type = self._aliases.get_model_attribute_type(location, key)
             if self._is_jvm_args_key(key, location):
                 current_text = self._get_jvm_args_text(current_value)

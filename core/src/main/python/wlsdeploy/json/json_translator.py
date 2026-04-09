@@ -224,15 +224,14 @@ def _format_json_value(value):
     :param value: the value
     :return: the JSON snippet
     """
-    import java.lang.StringBuilder as StringBuilder
-    builder = StringBuilder()
     if type(value) == bool:
-        builder.append(JBoolean.toString(value))
+        return JBoolean.toString(value)
     elif isinstance(value, types.StringTypes):
-        builder.append('"').append(_escape_text(value.strip())).append('"')
+        return '"' + _escape_text(value.strip()) + '"'
+    elif value is None:
+        return 'null'
     else:
-        builder.append(value)
-    return builder.toString()
+        return str_helper.to_string(value)
 
 
 def _escape_text(text):
