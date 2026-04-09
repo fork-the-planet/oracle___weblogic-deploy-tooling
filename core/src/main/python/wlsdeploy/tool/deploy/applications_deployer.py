@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import os
@@ -22,6 +22,7 @@ from wlsdeploy.aliases.model_constants import LIBRARY
 from wlsdeploy.aliases.model_constants import PARTITION
 from wlsdeploy.aliases.model_constants import PLAN_DIR
 from wlsdeploy.aliases.model_constants import PLAN_PATH
+from wlsdeploy.aliases.model_constants import PRODUCTION_REDEPLOYMENTS
 from wlsdeploy.aliases.model_constants import RESOURCES
 from wlsdeploy.aliases.model_constants import RESOURCE_GROUP
 from wlsdeploy.aliases.model_constants import RESOURCE_GROUP_TEMPLATE
@@ -82,6 +83,9 @@ class ApplicationsDeployer(Deployer):
         self._class_name = 'ApplicationsDeployer'
         self._base_location = base_location
         self._parent_dict, self._parent_name, self._parent_type = self.__get_parent_by_location(self._base_location)
+        self._domain_info_dict = model.get_model_domain_info()
+        self._app_production_redeployments = dictionary_utils.get_dictionary_element(
+            self._domain_info_dict, PRODUCTION_REDEPLOYMENTS)
         self.version_helper = ApplicationsVersionHelper(model_context, self.archive_helper)
 
     # Override

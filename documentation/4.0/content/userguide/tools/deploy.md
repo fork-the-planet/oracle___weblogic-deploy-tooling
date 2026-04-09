@@ -67,6 +67,13 @@ to restart the server.  It does this in a few ways:
 The goal is to make the tool both able to support iterative deployment and able to minimize service disruption while
 doing its work when working against a running domain.
 
+#### Online production redeployment of versioned applications
+
+Like the Update Domain Tool, the Deploy Applications Tool can use `domainInfo:/ProductionRedeployments` to request
+production redeployment for versioned applications in online mode.  See
+[Online production redeployment of versioned applications]({{% relref "/userguide/tools/update#online-production-redeployment-of-versioned-applications" %}})
+for the model format and behavior details.
+
 #### Online update for shared libraries
 
 When updating shared library online, it is recommended to deploy a new version of the library by updating the version(s)

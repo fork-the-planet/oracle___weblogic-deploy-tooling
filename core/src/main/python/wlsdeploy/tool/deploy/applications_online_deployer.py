@@ -1,9 +1,10 @@
 """
-Copyright (c) 2017, 2025, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import copy
 import os.path
+import re
 
 from sets import Set
 
@@ -17,6 +18,9 @@ from oracle.weblogic.deploy.util import WLSDeployArchive
 
 from wlsdeploy.aliases import alias_utils
 from wlsdeploy.aliases.location_context import LocationContext
+from wlsdeploy.aliases.model_constants import APP_VERSION
+from wlsdeploy.aliases.model_constants import RETIRE_GRACEFULLY
+from wlsdeploy.aliases.model_constants import RETIRE_TIMEOUT
 from wlsdeploy.aliases.model_constants import ABSOLUTE_PLAN_PATH
 from wlsdeploy.aliases.model_constants import ABSOLUTE_SOURCE_PATH
 from wlsdeploy.aliases.model_constants import APPLICATION
@@ -39,6 +43,7 @@ from wlsdeploy.aliases.model_constants import SUB_DEPLOYMENT
 from wlsdeploy.aliases.model_constants import SUB_MODULE_TARGETS
 from wlsdeploy.aliases.model_constants import TARGET
 from wlsdeploy.aliases.model_constants import TARGETS
+from wlsdeploy.aliases.model_constants import VERSION_IDENTIFIER
 from wlsdeploy.aliases.wlst_modes import WlstModes
 from wlsdeploy.exception import exception_helper
 from wlsdeploy.tool.deploy import deployer_utils
@@ -57,11 +62,18 @@ MODEL_OPTIONS_MAP = {
     STAGE_MODE: 'stageMode'
 }
 
+_PRODUCTION_REDEPLOY = '__WDT_PRODUCTION_REDEPLOY'
+_PRODUCTION_REDEPLOY_LOGICAL_NAME = '__WDT_PRODUCTION_REDEPLOY_LOGICAL_NAME'
+_PRODUCTION_REDEPLOY_ARCHIVE_VERSION = '__WDT_PRODUCTION_REDEPLOY_ARCHIVE_VERSION'
+_PRODUCTION_REDEPLOY_APP_VERSION = '__WDT_PRODUCTION_REDEPLOY_APP_VERSION'
+
 class OnlineApplicationsDeployer(ApplicationsDeployer):
 
     def __init__(self, model, model_context, aliases, base_location=LocationContext()):
         ApplicationsDeployer.__init__(self, model, model_context, aliases, WlstModes.ONLINE, base_location)
         self._class_name = 'OnlineApplicationsDeployer'
+        self._start_options_by_app = {}
+        self._start_name_by_app = {}
 
     def deploy(self, is_restart_required=False):
         """
@@ -73,6 +85,8 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
         _method_name = 'deploy'
         self.logger.entering(self._parent_name, self._parent_type, is_restart_required,
                              class_name=self._class_name, method_name=_method_name)
+        self._start_options_by_app = {}
+        self._start_name_by_app = {}
 
         self.__deploy_db_client_data()
 
@@ -126,12 +140,12 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
         for app in stop_and_undeploy_app_list:
             self.__stop_app(app)
             self.__undeploy_app(app, APPLICATION)
-            self.__delete_deployment_on_server(app, model_applications[app])
+            self.__delete_deployment_on_server(app, dictionary_utils.get_dictionary_element(model_applications, app))
 
         # library is updated, it must be undeployed first
         for lib in update_library_list:
             self.__undeploy_app(lib, LIBRARY)
-            self.__delete_deployment_on_server(lib, model_shared_libraries[lib])
+            self.__delete_deployment_on_server(lib, dictionary_utils.get_dictionary_element(model_shared_libraries, lib))
 
         self.__deploy_model_libraries(model_shared_libraries, lib_location)
 
@@ -252,13 +266,14 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
                 absolute_source_path = self.__compute_absolute_source_path(attributes_map)
                 absolute_plan_path = self.__compute_absolute_plan_path(attributes_map)
                 deployment_order = dictionary_utils.get_element(attributes_map, DEPLOYMENT_ORDER)
+                version_identifier = dictionary_utils.get_element(attributes_map, VERSION_IDENTIFIER)
                 config_targets = self._get_config_targets()
 
                 app_hash, plan_hash = \
                     self.__get_app_and_plan_hash(absolute_source_path, absolute_plan_path, local_download_root)
                 _update_ref_dictionary(ref_dictionary, app, absolute_source_path, app_hash, config_targets,
                                        absolute_plan_path=absolute_plan_path, deploy_order=deployment_order,
-                                       plan_hash=plan_hash)
+                                       plan_hash=plan_hash, version_identifier=version_identifier)
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name, result=ref_dictionary.keys())
         return ref_dictionary
@@ -538,12 +553,14 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
                     continue
 
                 model_src_path = dictionary_utils.get_element(app_dict, SOURCE_PATH)
+                module_type = dictionary_utils.get_element(app_dict, MODULE_TYPE)
                 # determine the versioned name of the library from the application's MANIFEST
-                versioned_name = self.version_helper.get_application_versioned_name(model_src_path, app)
+                versioned_name = self.version_helper.get_application_versioned_name(model_src_path, app, module_type)
                 existing_app_ref = dictionary_utils.get_dictionary_element(existing_app_refs, versioned_name)
+                matched_existing_name, matched_existing_ref = self.__get_existing_versioned_app_ref(app, existing_app_refs)
 
                 # remove deleted targets from the model and the existing app targets
-                self.__remove_delete_targets(app_dict, existing_app_ref)
+                self.__remove_delete_targets(app_dict, existing_app_ref or matched_existing_ref)
 
                 if versioned_name in existing_apps:
                     # Compare the hashes of the domain's existing apps to the model's apps.
@@ -572,8 +589,47 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
                     self.__update_app_build_strategy_based_on_hashes(app, app_dict, existing_app_targets_set,
                                                                      model_apps, model_src_path, plan_path, src_path,
                                                                      stop_and_undeploy_app_list, versioned_name)
+                elif matched_existing_ref is not None:
+                    matched_targets = dictionary_utils.get_element(matched_existing_ref, 'target')
+                    matched_targets_set = Set(matched_targets)
+                    archive_version = self.version_helper.get_application_archive_version(model_src_path, module_type)
+                    existing_version = dictionary_utils.get_element(matched_existing_ref, VERSION_IDENTIFIER)
+                    if self.__is_production_redeploy_requested(app, archive_version, existing_version):
+                        app_dict[_PRODUCTION_REDEPLOY] = True
+                        app_dict[_PRODUCTION_REDEPLOY_LOGICAL_NAME] = app
+                        app_dict[_PRODUCTION_REDEPLOY_ARCHIVE_VERSION] = archive_version
+                        app_dict[_PRODUCTION_REDEPLOY_APP_VERSION] = self.__get_production_redeploy_app_version(app)
+                        if app_dict[SOURCE_PATH] is None and model_src_path is not None:
+                            app_dict[SOURCE_PATH] = model_src_path
+                        if dictionary_utils.get_element(app_dict, TARGET) is None:
+                            app_dict[TARGET] = ','.join(matched_targets_set)
+                    else:
+                        self.__append_to_stop_and_undeploy_apps(matched_existing_name, stop_and_undeploy_app_list,
+                                                                matched_targets_set)
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name)
+
+    def __get_existing_versioned_app_ref(self, app_name, existing_app_refs):
+        existing_names = existing_app_refs.keys()
+        existing_names.sort()
+        for existing_name in existing_names:
+            tokens = re.split(r'[#@]', existing_name)
+            if len(tokens) > 0 and tokens[0] == app_name:
+                return existing_name, existing_app_refs[existing_name]
+        return None, None
+
+    def __get_production_redeploy_info(self, app_name):
+        return dictionary_utils.get_dictionary_element(self._app_production_redeployments, app_name)
+
+    def __get_production_redeploy_app_version(self, app_name):
+        redeploy_info = self.__get_production_redeploy_info(app_name)
+        return dictionary_utils.get_element(redeploy_info, APP_VERSION)
+
+    def __is_production_redeploy_requested(self, app_name, archive_version, existing_version):
+        app_version = self.__get_production_redeploy_app_version(app_name)
+        return (not string_utils.is_empty(app_version)
+                and not string_utils.is_empty(archive_version)
+                and archive_version != existing_version)
 
     def __get_uses_path_tokens_attribute_names(self, app_location):
         location = LocationContext(app_location)
@@ -721,7 +777,9 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
         model_targets = dictionary_utils.get_element(model_dict, TARGET)
         model_targets = alias_utils.create_list(model_targets, 'WLSDPLY-08000')
 
-        existing_targets = dictionary_utils.get_element(existing_ref, 'target')
+        existing_targets = None
+        if existing_ref is not None:
+            existing_targets = dictionary_utils.get_element(existing_ref, 'target')
         if not existing_targets:
             existing_targets = list()
 
@@ -884,6 +942,7 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
                     new_name = self.__deploy_app_or_library(
                         deployment_name, deployment_type, model_source_path, source_path, targets,
                         plan=plan_path, stage_mode=stage_mode,
+                        deployment_dict=deployment_dict,
                         partition=partition_name,
                         resource_group=resource_group_name,
                         resource_group_template=resource_group_template_name,
@@ -902,7 +961,7 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
     def __deploy_app_or_library(self, deployment_name, deployment_type, model_source_path, deploy_source_path,
                                 targets, stage_mode=None, plan=None, partition=None, resource_group=None,
                                 resource_group_template=None, sub_module_targets=None, module_type = None,
-                                options=None):
+                                options=None, deployment_dict=None):
         """
         Deploy an application, shared library, or plugin in online mode.
         :param deployment_name: the name of the deployment from the model
@@ -919,7 +978,8 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
         _method_name = '__deploy_app_or_library'
         self.logger.entering(deployment_name, deployment_type, model_source_path, deploy_source_path, targets,
                              stage_mode, plan, partition, resource_group, resource_group_template, sub_module_targets,
-                             module_type, options, class_name=self._class_name, method_name=_method_name)
+                             module_type, options, deployment_dict,
+                             class_name=self._class_name, method_name=_method_name)
 
         self.logger.info('WLSDPLY-09316', deployment_type, deployment_name, class_name=self._class_name,
                          method_name=_method_name)
@@ -938,7 +998,11 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
             self.logger.throwing(ex, class_name=self._class_name, method_name=_method_name)
             raise ex
 
-        deployment_name = self._get_versioned_name(model_source_path, deployment_name, deployment_type, module_type)
+        is_production_redeploy = dictionary_utils.get_element(deployment_dict, _PRODUCTION_REDEPLOY) is True
+        deploy_name = deployment_name
+        bookkeeping_name = self._get_versioned_name(model_source_path, deployment_name, deployment_type, module_type)
+        if not is_production_redeploy:
+            deploy_name = bookkeeping_name
 
         # build the dictionary of named arguments to pass to the deploy_application method
         args = list()
@@ -965,6 +1029,11 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
             kwargs['partition'] = str_helper.to_string(partition)
         if stage_mode is not None:
             kwargs['stageMode'] = str_helper.to_string(stage_mode)
+        if is_production_redeploy:
+            kwargs['adminMode'] = 'true'
+            app_version = dictionary_utils.get_element(deployment_dict, _PRODUCTION_REDEPLOY_APP_VERSION)
+            if not string_utils.is_empty(app_version):
+                kwargs['appVersion'] = str_helper.to_string(app_version)
         if options is not None:
             for key, value in options.iteritems():
                 kwargs[key] = value
@@ -973,12 +1042,30 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
         if self.version_helper.is_module_type_app_module(module_type) and sub_module_targets is not None:
             kwargs[SUB_MODULE_TARGETS] = sub_module_targets
 
-        self.logger.fine('WLSDPLY-09320', deployment_type, deployment_name, kwargs,
+        self.logger.fine('WLSDPLY-09320', deployment_type, deploy_name, kwargs,
                          class_name=self._class_name, method_name=_method_name)
-        self.wlst_helper.deploy_application(deployment_name, *args, **kwargs)
+        self.wlst_helper.deploy_application(deploy_name, *args, **kwargs)
 
-        self.logger.exiting(class_name=self._class_name, method_name=_method_name, result=deployment_name)
-        return deployment_name
+        if is_production_redeploy:
+            self._start_name_by_app[bookkeeping_name] = deployment_name
+            start_options = OrderedDict()
+            archive_version = dictionary_utils.get_element(deployment_dict, _PRODUCTION_REDEPLOY_ARCHIVE_VERSION)
+            if not string_utils.is_empty(archive_version):
+                start_options['archiveVersion'] = str_helper.to_string(archive_version)
+            retire_gracefully = self.__get_production_redeploy_option(deployment_name, RETIRE_GRACEFULLY)
+            retire_timeout = self.__get_production_redeploy_option(deployment_name, RETIRE_TIMEOUT)
+            if retire_gracefully is not None:
+                start_options['retireGracefully'] = retire_gracefully
+            if retire_timeout is not None:
+                start_options['retireTimeout'] = str_helper.to_string(retire_timeout)
+            self._start_options_by_app[bookkeeping_name] = start_options
+
+        self.logger.exiting(class_name=self._class_name, method_name=_method_name, result=bookkeeping_name)
+        return bookkeeping_name
+
+    def __get_production_redeploy_option(self, application_name, option_name):
+        redeploy_info = self.__get_production_redeploy_info(application_name)
+        return dictionary_utils.get_element(redeploy_info, option_name)
 
     def __get_deployment_ordering(self, apps):
         _method_name = '__get_deployment_ordering'
@@ -1249,13 +1336,18 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name)
 
-    def __start_app(self, application_name, partition_name=None):
+    def __start_app(self, application_name, partition_name=None, start_options=None):
         _method_name = '__start_app'
-        self.logger.entering(application_name, partition_name, class_name=self._class_name, method_name=_method_name)
+        self.logger.entering(application_name, partition_name, start_options,
+                             class_name=self._class_name, method_name=_method_name)
 
         self.logger.info('WLSDPLY-09313', application_name, class_name=self._class_name, method_name=_method_name)
-        self.wlst_helper.start_application(application_name, partition=partition_name,
-                                           timeout=self.model_context.get_model_config().get_start_app_timeout())
+        kwargs = {'partition': partition_name,
+                  'timeout': self.model_context.get_model_config().get_start_app_timeout()}
+        if start_options is not None:
+            for key, value in start_options.iteritems():
+                kwargs[key] = value
+        self.wlst_helper.start_application(application_name, **kwargs)
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name)
 
@@ -1287,7 +1379,11 @@ class OnlineApplicationsDeployer(ApplicationsDeployer):
 
         start_order = self.__get_deployment_ordering(temp_app_dict)
         for app in start_order:
-            self.__start_app(app)
+            start_name = dictionary_utils.get_element(self._start_name_by_app, app)
+            if start_name is None:
+                start_name = app
+            start_options = dictionary_utils.get_dictionary_element(self._start_options_by_app, app)
+            self.__start_app(start_name, start_options=start_options)
 
         self.logger.exiting(class_name=self._class_name, method_name=_method_name)
 
@@ -1341,7 +1437,8 @@ def _get_deployment_order(apps_dict, ordered_list, order):
     return result
 
 def _update_ref_dictionary(ref_dictionary, lib_name, absolute_source_path, lib_hash, configured_targets,
-                           absolute_plan_path=None, plan_hash=None, app_name=None, deploy_order=None):
+                           absolute_plan_path=None, plan_hash=None, app_name=None, deploy_order=None,
+                           version_identifier=None):
     """
     Update the reference dictionary for the apps/libraries
     :param ref_dictionary: the reference dictionary to update
@@ -1361,6 +1458,7 @@ def _update_ref_dictionary(ref_dictionary, lib_name, absolute_source_path, lib_h
         ref_dictionary[lib_name]['planPath'] = absolute_plan_path
         ref_dictionary[lib_name]['planHash'] = plan_hash
         ref_dictionary[lib_name]['target'] = configured_targets
+        ref_dictionary[lib_name][VERSION_IDENTIFIER] = version_identifier
 
     if app_name is not None:
         lib = ref_dictionary[lib_name]

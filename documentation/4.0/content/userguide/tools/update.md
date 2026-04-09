@@ -59,6 +59,53 @@ to restart the server.  It does this in a few ways:
 The goal is to make the tool both able to support iterative deployment and able to minimize service disruption while
 doing its work when working against a running domain.
 
+#### Online production redeployment of versioned applications
+
+When updating a versioned application online, WDT can perform production redeployment when the model includes a
+matching `domainInfo:/ProductionRedeployments` entry for the application. This metadata is WDT-specific and is
+used only for online deployment behavior.
+
+For example:
+
+```yaml
+domainInfo:
+    ProductionRedeployments:
+        OtdApp:
+            AppVersion: v2
+            RetireTimeout: 30
+appDeployments:
+    Application:
+        OtdApp:
+            SourcePath: wlsdeploy/applications/OtdApp.war
+            PlanDir: wlsdeploy/applications
+            PlanPath: OtdApp-Plan.xml
+            Target: mycluster
+            ModuleType: war
+```
+
+The fields in `domainInfo:/ProductionRedeployments/<application-name>` are:
+
+- `AppVersion` - identifies the intended redeployment operation in the model delta.
+- `RetireGracefully` - requests graceful retirement of the currently active version.
+- `RetireTimeout` - retires the currently active version after the specified timeout in seconds.
+
+`RetireGracefully` and `RetireTimeout` are mutually exclusive. If `RetireTimeout` is specified, it must be a positive
+integer.
+
+When the model delta changes only the application `SourcePath`, WDT uses the existing in-place online redeploy flow.
+When the model delta includes both the changed application binary and the matching
+`domainInfo:/ProductionRedeployments` entry, WDT performs production redeployment by:
+
+1. deploying the new archive in administration mode
+2. verifying that the deployment succeeded
+3. starting the new application version with the requested retirement policy
+
+In offline mode, WDT ignores `domainInfo:/ProductionRedeployments`.
+
+`discoverDomain` can discover multiple deployed application versions, but it will not recreate
+`domainInfo:/ProductionRedeployments` because the retirement policy is not stored in the domain configuration
+MBeans.
+
 #### Online update for shared libraries
 
 When updating shared library online, it is recommended to deploy a new version of the library by updating the version(s)

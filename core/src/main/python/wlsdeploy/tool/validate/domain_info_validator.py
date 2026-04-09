@@ -1,11 +1,12 @@
 """
-Copyright (c) 2024, 2025, Oracle and/or its affiliates.
+Copyright (c) 2024, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 from oracle.weblogic.deploy.create import RCURunner
 
 from wlsdeploy.aliases.model_constants import ATP_DEFAULT_TABLESPACE
 from wlsdeploy.aliases.model_constants import ATP_TEMPORARY_TABLESPACE
+from wlsdeploy.aliases.model_constants import APP_VERSION
 from wlsdeploy.aliases.model_constants import DATABASE_TYPE
 from wlsdeploy.aliases.model_constants import DOMAIN_INFO
 from wlsdeploy.aliases.model_constants import DRIVER_PARAMS_KEYSTORETYPE_PROPERTY
@@ -17,11 +18,14 @@ from wlsdeploy.aliases.model_constants import METHOD
 from wlsdeploy.aliases.model_constants import MODEL_LIST_DELIMITER
 from wlsdeploy.aliases.model_constants import ORACLE_DATABASE_CONNECTION_TYPE
 from wlsdeploy.aliases.model_constants import PROTOCOL
+from wlsdeploy.aliases.model_constants import PRODUCTION_REDEPLOYMENTS
 from wlsdeploy.aliases.model_constants import RCU_DATABASE_TYPE
 from wlsdeploy.aliases.model_constants import RCU_DB_INFO
 from wlsdeploy.aliases.model_constants import RCU_DEFAULT_TABLESPACE
 from wlsdeploy.aliases.model_constants import RCU_TEMP_TBLSPACE
 from wlsdeploy.aliases.model_constants import REMOTE_RESOURCE
+from wlsdeploy.aliases.model_constants import RETIRE_GRACEFULLY
+from wlsdeploy.aliases.model_constants import RETIRE_TIMEOUT
 from wlsdeploy.aliases.model_constants import SERVER_GROUP_TARGETING_LIMITS
 from wlsdeploy.aliases.model_constants import SERVER_START_MODE
 from wlsdeploy.aliases.model_constants import STORE_TYPE_SSO
@@ -135,6 +139,8 @@ class DomainInfoValidator(ModelValidator):
             self.__validate_wls_credential_mappings_section(model_node)
         elif folder_name == RCU_DB_INFO:
             self.__validate_rcu_db_info_section(model_node)
+        elif folder_name == PRODUCTION_REDEPLOYMENTS:
+            self.__validate_app_production_redeployments_section(model_node, location)
 
     # Override
     def _validate_attribute(self, attribute_name, attribute_value, valid_attr_infos, path_tokens_attr_keys,
@@ -300,6 +306,50 @@ class DomainInfoValidator(ModelValidator):
                                             class_name=_class_name, method_name=__method_name)
 
         self._logger.exiting(class_name=_class_name, method_name=__method_name)
+
+    def __validate_app_production_redeployments_section(self, redeployments_dict, location):
+        _method_name = '__validate_app_production_redeployments_section'
+        self._logger.entering(class_name=_class_name, method_name=_method_name)
+
+        if redeployments_dict is not None:
+            model_folder_path = str_helper.to_string(location)
+            if not isinstance(redeployments_dict, dict):
+                self._logger.severe('WLSDPLY-05032', PRODUCTION_REDEPLOYMENTS, model_folder_path,
+                                    str_helper.to_string(type(redeployments_dict)),
+                                    class_name=_class_name, method_name=_method_name)
+            else:
+                for app_name, redeploy_info in redeployments_dict.iteritems():
+                    app_folder_path = model_folder_path + '/' + str_helper.to_string(app_name)
+                    if not isinstance(redeploy_info, dict):
+                        self._logger.severe('WLSDPLY-05032', str_helper.to_string(app_name), model_folder_path,
+                                            str_helper.to_string(type(redeploy_info)),
+                                            class_name=_class_name, method_name=_method_name)
+                    else:
+                        self.__validate_single_app_production_redeployment(redeploy_info, app_folder_path)
+
+        self._logger.exiting(class_name=_class_name, method_name=_method_name)
+
+    def __validate_single_app_production_redeployment(self, redeploy_info, model_folder_path):
+        _method_name = '__validate_single_app_production_redeployment'
+
+        app_version = self._get_validation_value(redeploy_info, APP_VERSION)
+        retire_gracefully = self._get_validation_value(redeploy_info, RETIRE_GRACEFULLY)
+        retire_timeout = self._get_validation_value(redeploy_info, RETIRE_TIMEOUT)
+
+        if retire_gracefully is not None and retire_timeout is not None:
+            self._logger.severe('WLSDPLY-05315', PRODUCTION_REDEPLOYMENTS, model_folder_path,
+                                RETIRE_GRACEFULLY, RETIRE_TIMEOUT,
+                                class_name=_class_name, method_name=_method_name)
+
+        if retire_timeout is not None:
+            if not isinstance(retire_timeout, (int, long)):
+                self._logger.severe('WLSDPLY-05316', PRODUCTION_REDEPLOYMENTS, model_folder_path,
+                                    RETIRE_TIMEOUT, str_helper.to_string(type(retire_timeout)),
+                                    class_name=_class_name, method_name=_method_name)
+            elif retire_timeout <= 0:
+                self._logger.severe('WLSDPLY-05317', PRODUCTION_REDEPLOYMENTS, model_folder_path,
+                                    RETIRE_TIMEOUT, str_helper.to_string(retire_timeout),
+                                    class_name=_class_name, method_name=_method_name)
 
     def _validate_single_server_group_target_limits_value(self, key, value, model_folder_path):
         _method_name = '_validate_single_server_group_target_limits_value'

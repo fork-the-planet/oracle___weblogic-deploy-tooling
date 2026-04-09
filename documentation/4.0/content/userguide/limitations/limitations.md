@@ -115,11 +115,34 @@ to supply "remote" values for these paths.
 
 ### Production Redeployment of Versioned Applications
 
-**ISSUE**: WDT Update Domain does not properly deploy a new version of an application to support non-disruptive updates.
+**ISSUE**: WDT supports online production redeployment of versioned applications only when the model explicitly
+describes the redeployment intent using `domainInfo:/ProductionRedeployments`. The retirement options are runtime
+deployment metadata and are not discoverable from the WebLogic configuration MBeans.
 
-**ACTION**: While we fully intend to resolve this issue in an upcoming release, the workaround for now is to use the
-`weblogic.Deployer` tool to redeploy the application pointing at the new source files, as described in the
-[WebLogic Server documentation](https://docs.oracle.com/en/middleware/fusion-middleware/weblogic-server/12.2.1.4/depgd/redeploy.html#GUID-2C0A6D50-3D20-4167-8091-4A5546DEFD6C).
+**ACTION**:
+
+- For online production redeployment, specify the application under `appDeployments:/Application` and add a matching
+  entry under `domainInfo:/ProductionRedeployments`, for example:
+
+```yaml
+domainInfo:
+    ProductionRedeployments:
+        myearv1:
+            AppVersion: v2
+            RetireTimeout: 30
+appDeployments:
+    Application:
+        myearv1:
+            SourcePath: wlsdeploy/applications/myearv1.ear
+            ModuleType: ear
+            Target: AdminServer
+```
+
+- In online mode, WDT will use this metadata to deploy the new version in administration mode and then start it using
+  the application version and retirement policy.
+- In offline mode, WDT ignores `domainInfo:/ProductionRedeployments`.
+- `discoverDomain` will not recreate `domainInfo:/ProductionRedeployments` because the retirement policy is not
+  stored in the domain configuration MBeans.
 
 ### Online Update Domain running on JDK 8
 

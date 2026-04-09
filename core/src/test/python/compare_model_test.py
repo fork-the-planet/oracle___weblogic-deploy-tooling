@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2023, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import unittest
@@ -16,9 +16,13 @@ from oracle.weblogic.deploy.util import PyWLSTException
 from compare_model import ModelFileDiffer
 from wlsdeploy.aliases.model_constants import APPLICATION
 from wlsdeploy.aliases.model_constants import APP_DEPLOYMENTS
+from wlsdeploy.aliases.model_constants import APP_VERSION
+from wlsdeploy.aliases.model_constants import DOMAIN_INFO
 from wlsdeploy.aliases.model_constants import LIBRARY
 from wlsdeploy.aliases.model_constants import MAX_THREADS_CONSTRAINT
 from wlsdeploy.aliases.model_constants import MIN_THREADS_CONSTRAINT
+from wlsdeploy.aliases.model_constants import PRODUCTION_REDEPLOYMENTS
+from wlsdeploy.aliases.model_constants import RETIRE_TIMEOUT
 from wlsdeploy.aliases.model_constants import RESOURCES
 from wlsdeploy.aliases.model_constants import SELF_TUNING
 from wlsdeploy.aliases.model_constants import SOURCE_PATH
@@ -671,6 +675,87 @@ class CompareModelTestCase(unittest.TestCase):
             json_result = _output_dir + os.sep + 'compare_model_stdout'
             self.assertEqual(os.path.exists(json_result), False, "compare_model.stdout result should not exist: " +
                              json_result)
+
+        except (CompareException, PyWLSTException), te:
+            return_code = 2
+            self._logger.severe('WLSDPLY-05709', te.getLocalizedMessage(), error=te,
+                                class_name=self._program_name, method_name=_method_name)
+
+        self.assertEqual(return_code, 0)
+
+    def testCompareModelProductionRedeployments(self):
+        _method_name = 'testCompareModelProductionRedeployments'
+
+        _output_dir = os.path.join(self._results_dir, 'app-production-redeploy')
+        if not os.path.isdir(_output_dir):
+            os.mkdir(_output_dir)
+
+        _new_model_file = os.path.join(_output_dir, 'new-model.yaml')
+        _old_model_file = os.path.join(_output_dir, 'old-model.yaml')
+
+        writer = open(_old_model_file, 'w')
+        try:
+            writer.write(
+                "domainInfo:\n"
+                "  ProductionRedeployments:\n"
+                "    myearv1:\n"
+                "      AppVersion: v2\n"
+                "      RetireTimeout: 30\n"
+                "appDeployments:\n"
+                "  Application:\n"
+                "    myearv1:\n"
+                "      SourcePath: /tmp/myearv1.ear\n"
+                "      ModuleType: ear\n"
+                "      Target: AdminServer\n")
+        finally:
+            writer.close()
+
+        writer = open(_new_model_file, 'w')
+        try:
+            writer.write(
+                "domainInfo:\n"
+                "  ProductionRedeployments:\n"
+                "    myearv1:\n"
+                "      AppVersion: v3\n"
+                "      RetireTimeout: 45\n"
+                "appDeployments:\n"
+                "  Application:\n"
+                "    myearv1:\n"
+                "      SourcePath: /tmp/myearv2.ear\n"
+                "      ModuleType: ear\n"
+                "      Target: AdminServer\n")
+        finally:
+            writer.close()
+
+        args_map = {
+            '-oracle_home': '/oracle',
+            '-output_dir': _output_dir,
+            '-trailing_arguments': [_new_model_file, _old_model_file]
+        }
+
+        try:
+            model_context = ModelContext('CompareModelTestCase', args_map)
+            differ = ModelFileDiffer(_new_model_file, _old_model_file, model_context, _output_dir)
+            differ.hide_output()
+            return_code = differ.compare()
+            self.assertEqual(return_code, 0)
+
+            yaml_result = _output_dir + os.sep + 'diffed_model.yaml'
+            self.assertEqual(os.path.exists(yaml_result), True, "YAML result should exist: " + yaml_result)
+
+            model_root = FileToPython(yaml_result).parse()
+            domain_info = dictionary_utils.get_dictionary_element(model_root, DOMAIN_INFO)
+            app_redeployments = dictionary_utils.get_dictionary_element(domain_info, PRODUCTION_REDEPLOYMENTS)
+            myearv1_redeploy = dictionary_utils.get_dictionary_element(app_redeployments, 'myearv1')
+            self.assertEqual(dictionary_utils.get_element(myearv1_redeploy, APP_VERSION), 'v3')
+            self.assertEqual(dictionary_utils.get_element(myearv1_redeploy, RETIRE_TIMEOUT), 45)
+
+            app_deployments = dictionary_utils.get_dictionary_element(model_root, APP_DEPLOYMENTS)
+            applications = dictionary_utils.get_dictionary_element(app_deployments, APPLICATION)
+            application = dictionary_utils.get_dictionary_element(applications, 'myearv1')
+            self.assertEqual(dictionary_utils.get_element(application, SOURCE_PATH), '/tmp/myearv2.ear')
+            self.assertEqual(dictionary_utils.get_element(application, 'ModuleType'), 'ear')
+            self.assertEqual(dictionary_utils.get_element(application, 'Target'), 'AdminServer')
 
         except (CompareException, PyWLSTException), te:
             return_code = 2

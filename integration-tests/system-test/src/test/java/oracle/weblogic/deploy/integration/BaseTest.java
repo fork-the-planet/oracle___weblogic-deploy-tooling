@@ -1,4 +1,4 @@
-// Copyright 2019, 2023, Oracle Corporation and/or its affiliates.
+// Copyright 2019, 2026, Oracle Corporation and/or its affiliates.
 // Licensed under the Universal Permissive License v 1.0 as shown at http://oss.oracle.com/licenses/upl.
 
 package oracle.weblogic.deploy.integration;
@@ -150,8 +150,8 @@ public class BaseTest {
         assertEquals(0, result.exitValue(), "Docker pull failed for " + imagename + ":" + imagetag);
 
         // verify the docker image is pulled
-        result = Runner.run("docker images | grep " + imagename  + " | grep " +
-                imagetag + "| wc -l");
+        result = Runner.run("docker images --format '{{.Repository}}:{{.Tag}}' | grep '^"
+                + imagename + ":" + imagetag + "$' | wc -l");
         String resultString = result.stdout();
         if(Integer.parseInt(resultString.trim()) != 1) {
             throw new Exception("docker image " + imagename + ":" + imagetag + " is not pulled as expected."

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2019, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 */
 
@@ -26,12 +26,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.jar.Attributes;
+import java.util.Optional;
 import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import oracle.weblogic.deploy.integration.annotations.IntegrationTest;
 import oracle.weblogic.deploy.integration.annotations.TestingLogger;
@@ -1665,12 +1666,104 @@ public class ITWdt extends BaseTest {
         }
     }
 
-    private void verifyVersionedAppVersion(File archivedAppFile, String version) throws Exception {
-        JarFile warFile = new JarFile(archivedAppFile.getAbsolutePath());
-        Manifest manifest = warFile.getManifest();
-        Attributes attributes = manifest.getAttributes("Weblogic-Application-Version");
-        String archiveVersion = attributes.getValue("Weblogic-Application-Version");
-        assertEquals(version, archiveVersion, "Expected the archive version to match the expected version");
+    @DisplayName("Test 41: Create domain with versioned app and use online update for production redeployment")
+    @Order(41)
+    @Tag("gate")
+    @Test
+    void test41OnlineProductionRedeployVersionedApp(TestInfo testInfo) throws Exception {
+        String domainDir = "domain41";
+        String domainHome = domainParentDir + FS + domainDir;
+        String cmd = createDomainScript
+            + " -oracle_home " + mwhome_12213
+            + " -domain_home " + domainHome
+            + " -model_file " + getSampleModelFile("-versioned-online")
+            + " -variable_file " + getSampleVariableFile()
+            + " -archive_file " + getTargetDir() + FS + "archive41.zip";
+
+        try (PrintWriter out = getTestMethodWriter(testInfo, "CreateDomain")) {
+            CommandResult result = Runner.run(cmd, getTestMethodEnvironment(testInfo), out);
+            assertEquals(0, result.exitValue(), "Unexpected return code");
+        }
+
+        Path adminServerOut = getTestOutputPath(testInfo).resolve("admin-server.out");
+        boolean isServerUp = startAdminServer(domainHome, adminServerOut);
+        if (isServerUp) {
+            try {
+                try (PrintWriter out = getTestMethodWriter(testInfo, "UpdateDomainRemoteNewVersion")) {
+                    cmd = updateDomainScript
+                        + " -oracle_home " + mwhome_12213
+                        + " -model_file " + getSampleModelFile("-versioned-online-redeploy")
+                        + " -variable_file " + getSampleVariableFile()
+                        + " -archive_file " + getTargetDir() + FS + "archive41-updated.zip"
+                        + " -remote -admin_user weblogic -admin_pass welcome1 -admin_url t3://localhost:7001";
+                    CommandResult result = Runner.run(cmd, getTestMethodEnvironment(testInfo), out);
+
+                    moveWDTLogFile(getTestOutputPath(testInfo), "updateDomain.log", "updateDomain-1.log");
+
+                    verifyResult(result, "updateDomain.sh completed successfully");
+                }
+
+                Path discoveredArchive = getTestOutputPath(testInfo).resolve("discoveredArchive.zip");
+                Path discoveredModelFile = getTestOutputPath(testInfo).resolve("discoveredModel.yaml");
+                Path discoveredVariableFile = getTestOutputPath(testInfo).resolve("discoveredVariable.properties");
+                cmd = discoverDomainScript + " -oracle_home " + mwhome_12213
+                    + " -model_file " + discoveredModelFile + " -variable_file " + discoveredVariableFile
+                    + " -archive_file " + discoveredArchive
+                    + " -admin_user weblogic -admin_pass welcome1 -admin_url t3://localhost:7001";
+                try (PrintWriter out = getTestMethodWriter(testInfo, "DiscoverDomain")) {
+                    CommandResult result = Runner.run(cmd, getTestMethodEnvironment(testInfo), out);
+
+                    verifyResult(result, "discoverDomain.sh completed successfully");
+                }
+
+                try (PrintWriter out = getTestMethodWriter(testInfo, "ArchiveHelperOnDiscoveredArchive")) {
+                    Path archiveExtractDir = getTestOutputPath(testInfo);
+
+                    cmd = archiveHelperScript + " extract all -target " + archiveExtractDir +
+                        " -archive_file " + discoveredArchive;
+                    CommandResult result = Runner.run(cmd, getTestMethodEnvironment(testInfo), out);
+
+                    assertEquals(0, result.exitValue(), "Unexpected return code");
+                }
+
+                verifyVersionedAppVersion(getTestOutputPath(testInfo).resolve("wlsdeploy"), "OtdApp.war", "1.0@1.1.0");
+            } finally {
+                stopAdminServer(domainHome);
+            }
+        } else {
+            // Best effort to clean up server
+            tryKillTheAdminServer(domainHome, "admin-server");
+            throw new Exception("test41OnlineProductionRedeployVersionedApp failed - cannot bring up server");
+        }
+    }
+
+    private void verifyVersionedAppVersion(Path searchRoot, String fileName, String expectedVersion) throws Exception {
+        List<Path> matchingPaths = findFilesByName(searchRoot, fileName);
+        assertFalse(matchingPaths.isEmpty(), "Expected to find " + fileName + " under " + searchRoot);
+
+        Optional<Path> matchingVersion = matchingPaths.stream()
+            .filter(path -> expectedVersion.equals(getArchiveVersion(path.toFile())))
+            .findFirst();
+
+        assertTrue(matchingVersion.isPresent(),
+            "Expected to find " + fileName + " with version " + expectedVersion + " under " + searchRoot);
+    }
+
+    private String getArchiveVersion(File archivedAppFile) {
+        try (JarFile warFile = new JarFile(archivedAppFile.getAbsolutePath())) {
+            Manifest manifest = warFile.getManifest();
+            return manifest.getMainAttributes().getValue("Weblogic-Application-Version");
+        } catch (Exception ex) {
+            throw new RuntimeException("Failed to read archive version from " + archivedAppFile.getAbsolutePath(), ex);
+        }
+    }
+
+    private List<Path> findFilesByName(Path searchRoot, String fileName) throws Exception {
+        try (Stream<Path> pathStream = Files.walk(searchRoot)) {
+            return pathStream
+                .filter(path -> Files.isRegularFile(path) && fileName.equals(path.getFileName().toString()))
+                .toList();
+        }
     }
 
     private void verifyStructuredAppDirectoryStructure(String domainHomeDir) throws Exception {
