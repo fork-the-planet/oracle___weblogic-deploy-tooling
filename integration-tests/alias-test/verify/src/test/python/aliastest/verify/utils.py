@@ -1,5 +1,5 @@
 """
-Copyright (c) 2020, 2025, Oracle and/or its affiliates.
+Copyright (c) 2020, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import random
@@ -24,12 +24,14 @@ __logger = PlatformLogger('test.aliases')
 CLASS_NAME = 'verify/utils'
 
 OFFLINE_ALIAS_FOLDER_IGNORE_MAP = {
-    '/': ['ODLConfiguration', 'OHS', 'OPSSInitialization', 'RCUDbInfo', 'Security', 'UnixMachine', 'WLSPolicies',
-          'WLSRoles', 'WLSUserPasswordCredentialMappings'],
+    '/': ['ODLConfiguration', 'OHS', 'OPSSInitialization', 'ProductionRedeployments', 'RCUDbInfo', 'Security',
+          'UnixMachine', 'WLSPolicies', 'WLSRoles', 'WLSUserPasswordCredentialMappings'],
     '/ResourceGroupTemplate': ['OHS', 'SystemComponent']
 }
 
 ONLINE_ALIAS_FOLDER_IGNORE_MAP = {
+    '/': ['ODLConfiguration', 'OHS', 'OPSSInitialization', 'ProductionRedeployments', 'RCUDbInfo', 'Security',
+          'WLSPolicies', 'WLSRoles', 'WLSUserPasswordCredentialMappings'],
     '/ResourceGroupTemplate': ['SystemComponents']
 }
 
@@ -342,7 +344,7 @@ def sort_dict(dictionary):
 
 
 def is_alias_folder_in_ignore_list(model_context, location, alias_name):
-    if model_context.get_target_wlst_mode == WlstModes.ONLINE:
+    if model_context.get_target_wlst_mode() == WlstModes.ONLINE:
         ignore_map = ONLINE_ALIAS_FOLDER_IGNORE_MAP
     else:
         ignore_map = OFFLINE_ALIAS_FOLDER_IGNORE_MAP
