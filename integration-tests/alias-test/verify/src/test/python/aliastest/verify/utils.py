@@ -32,7 +32,7 @@ OFFLINE_ALIAS_FOLDER_IGNORE_MAP = {
 ONLINE_ALIAS_FOLDER_IGNORE_MAP = {
     '/': ['ODLConfiguration', 'OHS', 'OPSSInitialization', 'ProductionRedeployments', 'RCUDbInfo', 'Security',
           'WLSPolicies', 'WLSRoles', 'WLSUserPasswordCredentialMappings'],
-    '/ResourceGroupTemplate': ['SystemComponents']
+    '/ResourceGroupTemplate': ['OHS', 'SystemComponents']
 }
 
 ONLINE_ALIAS_ATTRIBUTE_IGNORE_MAP = {
