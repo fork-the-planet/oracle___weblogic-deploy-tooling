@@ -1,12 +1,12 @@
 +++
-title = "Release Notes"
+title = "Release 4.4.4"
 date = 2024-01-09T18:27:38-05:00
-weight = 53
+weight = 54
 pre = "<b> </b>"
 +++
 
 
-### Changes in Release 4.4.5
+### Changes in Release 4.4.4
 - [Major New Features](#major-new-features)
 - [Other Changes](#other-changes)
 - [Bugs Fixes](#bug-fixes)
@@ -17,12 +17,10 @@ pre = "<b> </b>"
 None
 
 #### Other Changes
-- #1874 - Added support for production redeployment of applications.
-- #1878 - Added support for variable use within the variables file.
-- #1878 - Added support for April 2026 PSUs.
+None
 
 #### Bug Fixes
-None
+- #1870 - Fixed problem discovering node manager keystores.
 
 #### Known Issues
 - SSH support requires a reasonably recent version of Bouncy Castle.  WDT picks up Bouncy Castle from WLST so, for example,
