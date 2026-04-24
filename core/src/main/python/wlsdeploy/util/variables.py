@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import os
@@ -34,6 +34,7 @@ _property_pattern = re.compile("(@@PROP:([\\w.-]+)@@)")
 _environment_pattern = re.compile("(@@ENV:([\\w.-]+)@@)")
 _secret_pattern = re.compile("(@@SECRET:([\\w.-]+):([\\w.-]+)@@)")
 _file_nested_variable_pattern = re.compile("(@@FILE:(@@[\w]+@@[\w.\\\/:-]+)@@)")
+_variable_reference_pattern = re.compile("\\$\\{([^{}]+)\\}")
 
 # these match a string containing ONLY a token
 _property_string_pattern = re.compile("^(@@PROP:([\\w.-]+)@@)$")
@@ -74,7 +75,66 @@ def load_variables(file_path, allow_multiple_files=False):
             _logger.throwing(ex, class_name=_class_name, method_name=method_name)
             raise ex
 
+    _resolve_variable_references(variable_map)
     return variable_map
+
+
+def _resolve_variable_references(variable_map):
+    """
+    Resolve ${name} references in the loaded variable values.
+    :param variable_map: the merged variable map
+    :raises VariableException: if a variable reference is missing or cyclic
+    """
+    if len(variable_map) == 0:
+        return
+
+    resolved_map = {}
+    for variable_name in variable_map.keys():
+        _resolve_variable_reference(variable_name, variable_map, resolved_map, [])
+
+    variable_map.update(resolved_map)
+
+
+def _resolve_variable_reference(variable_name, variable_map, resolved_map, resolving_names):
+    """
+    Resolve a single variable value and cache the result.
+    :param variable_name: the variable name to resolve
+    :param variable_map: the full merged variable map
+    :param resolved_map: cache of resolved variable values
+    :param resolving_names: stack of variable names currently being resolved
+    :return: the resolved variable value
+    :raises VariableException: if a variable reference is missing or cyclic
+    """
+    if variable_name in resolved_map:
+        return resolved_map[variable_name]
+
+    if variable_name in resolving_names:
+        cycle_start = resolving_names.index(variable_name)
+        cycle_names = resolving_names[cycle_start:] + [variable_name]
+        cycle_text = ' -> '.join(cycle_names)
+        raise exception_helper.create_variable_exception('WLSDPLY-01762', cycle_text)
+
+    value = variable_map[variable_name]
+    if not isinstance(value, basestring) or '${' not in value:
+        resolved_map[variable_name] = value
+        return value
+
+    resolving_names.append(variable_name)
+    try:
+        result = value
+        matches = _variable_reference_pattern.findall(value)
+        for referenced_name in matches:
+            if referenced_name not in variable_map:
+                raise exception_helper.create_variable_exception(
+                    'WLSDPLY-01761', variable_name, referenced_name)
+            referenced_value = _resolve_variable_reference(referenced_name, variable_map, resolved_map,
+                                                           resolving_names)
+            result = result.replace('${%s}' % referenced_name, referenced_value)
+    finally:
+        resolving_names.pop()
+
+    resolved_map[variable_name] = result
+    return result
 
 
 def write_variables(program_name, variable_map, file_path, append=False):
