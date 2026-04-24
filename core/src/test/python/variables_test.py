@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2021, Oracle Corporation and/or its affiliates.  All rights reserved.
+Copyright (c) 2017, 2026, Oracle Corporation and/or its affiliates.  All rights reserved.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import unittest
@@ -16,6 +16,12 @@ from java.util.logging import Level
 class VariablesTestCase(unittest.TestCase):
     _resources_dir = '../../test-classes'
     _variables_file = _resources_dir + '/variables.properties'
+    _variable_references_file = _resources_dir + '/variable-references.properties'
+    _variable_references_base_file = _resources_dir + '/variable-references-base.properties'
+    _variable_references_override_file = _resources_dir + '/variable-references-override.properties'
+    _variable_references_missing_file = _resources_dir + '/variable-references-missing.properties'
+    _variable_references_cycle_file = _resources_dir + '/variable-references-cycle.properties'
+    _variable_references_self_cycle_file = _resources_dir + '/variable-references-self-cycle.properties'
     _file_variable_name = 'file-variable.txt'
     _file_variable_path = _resources_dir + '/' + _file_variable_name
     _use_ordering = True
@@ -29,6 +35,30 @@ class VariablesTestCase(unittest.TestCase):
     def testReadVariables(self):
         variable_map = variables.load_variables(self._variables_file)
         self.assertEqual(variable_map['my-abc'], 'xyz')
+
+    def testReadVariablesReferences(self):
+        variable_map = variables.load_variables(self._variable_references_file)
+        self.assertEqual(variable_map['foo'], 'abc')
+        self.assertEqual(variable_map['bar'], 'abc')
+        self.assertEqual(variable_map['baz'], 'pre-abc-post')
+        self.assertEqual(variable_map['token-with-reference'], '@@ENV:TEST_ENV_NAME@@')
+        self.assertEqual(variable_map['token-holder'], '@@ENV:SHOULD_NOT_CHANGE@@')
+
+    def testReadVariablesReferencesAcrossMergedFiles(self):
+        variable_files = self._variable_references_base_file + ',' + self._variable_references_override_file
+        variable_map = variables.load_variables(variable_files, allow_multiple_files=True)
+        self.assertEqual(variable_map['shared'], 'override')
+        self.assertEqual(variable_map['selected'], 'override')
+        self.assertEqual(variable_map['decorated'], 'pre-override-post')
+
+    def testReadVariablesReferenceMissing(self):
+        self._assert_load_variables_failure(self._variable_references_missing_file, ['owner', 'missing'])
+
+    def testReadVariablesReferenceCycle(self):
+        self._assert_load_variables_failure(self._variable_references_cycle_file, ['cycle', 'foo', 'bar'])
+
+    def testReadVariablesReferenceSelfCycle(self):
+        self._assert_load_variables_failure(self._variable_references_self_cycle_file, ['self', 'self -> self'])
 
     def testSubstituteYaml(self):
         model = FileToPython(self._resources_dir + '/variables-test.yaml', self._use_ordering).parse()
@@ -193,6 +223,16 @@ class VariablesTestCase(unittest.TestCase):
             pass
         else:
             self.fail('Test must raise VariableException when token has a syntax error')
+
+    def _assert_load_variables_failure(self, file_name, expected_text_list):
+        try:
+            variables.load_variables(file_name)
+        except VariableException, e:
+            message = e.getLocalizedMessage()
+            for expected_text in expected_text_list:
+                self.assertEqual(True, expected_text in message, 'Expected "%s" in "%s"' % (expected_text, message))
+        else:
+            self.fail('Test must raise VariableException when variable references cannot be resolved')
 
 
 if __name__ == '__main__':
