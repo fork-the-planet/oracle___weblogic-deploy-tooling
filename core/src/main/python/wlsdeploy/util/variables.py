@@ -5,17 +5,14 @@ Licensed under the Universal Permissive License v1.0 as shown at https://oss.ora
 import os
 import re
 
-from java.lang import Boolean
 from java.lang import System
 from java.io import BufferedReader
-from java.io import File
 from java.io import FileInputStream
-from java.io import FileOutputStream
 from java.io import InputStreamReader
-from java.io import PrintWriter
 from java.io import IOException
 from java.nio.charset import StandardCharsets
 
+from oracle.weblogic.deploy.util import OrderedProperties
 from oracle.weblogic.deploy.util import PyOrderedDict as OrderedDict
 
 from wlsdeploy.exception import exception_helper
@@ -148,20 +145,13 @@ def write_variables(program_name, variable_map, file_path, append=False):
     """
     _method_name = 'write_variables'
     _logger.entering(program_name, file_path, append, class_name=_class_name, method_name=_method_name)
-    pw = None
     try:
-        pw = PrintWriter(FileOutputStream(File(file_path), Boolean(append)), Boolean('true'))
-        for key, value in variable_map.iteritems():
-            formatted = '%s=%s' % (key, value)
-            pw.println(formatted)
-        pw.close()
+        OrderedProperties.store(variable_map, file_path, None)
     except IOException, ioe:
         _logger.fine('WLSDPLY-20007', program_name, file_path, ioe.getLocalizedMessage())
         ex = exception_helper.create_variable_exception('WLSDPLY-20007', program_name, file_path,
                                                         ioe.getLocalizedMessage(), error=ioe)
         _logger.throwing(ex, class_name=_class_name, method_name=_method_name)
-        if pw is not None:
-            pw.close()
         raise ex
     _logger.exiting(class_name=_class_name, method_name=_method_name)
 

@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -110,16 +109,12 @@ public class XPathUtil {
      * @return Document from the parsed xml file
      */
     public Document readXmlFile(String path) {
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        DocumentBuilderFactory dbf;
         try {
-            dbf.setXIncludeAware(false);
-            dbf.setExpandEntityReferences(false);
-            dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            dbf = XmlUtils.getSecureDocumentBuilderFactory();
         } catch (ParserConfigurationException pce) {
             LOGGER.warning("WLSDPLY-01054", pce, pce.getLocalizedMessage());
+            dbf = XmlUtils.newDocumentBuilderFactory();
         }
 
         Document doc = null;
