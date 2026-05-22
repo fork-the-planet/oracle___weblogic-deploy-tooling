@@ -6,7 +6,6 @@ package oracle.weblogic.deploy.util;
 
 import java.io.IOException;
 import java.io.StringReader;
-import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -136,13 +135,7 @@ public class XACMLUtil {
         final String METHOD = "getDocumentBuilderFactory";
         LOGGER.entering(CLASS, METHOD);
 
-        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
-        dbf.setXIncludeAware(false);
-        dbf.setExpandEntityReferences(false);
-        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-        dbf.setAttribute(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-        dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+        DocumentBuilderFactory dbf = XmlUtils.getSecureDocumentBuilderFactory();
 
         LOGGER.exiting(CLASS, METHOD, dbf);
         return dbf;

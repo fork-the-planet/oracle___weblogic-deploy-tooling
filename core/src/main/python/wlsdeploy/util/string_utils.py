@@ -4,12 +4,11 @@ Licensed under the Universal Permissive License v 1.0 as shown at https://oss.or
 
 This module provides string manipulation helper methods that are not found in the WLST version of Jython
 """
-import java.io.FileInputStream as FileInputStream
 import java.io.IOException as IOException
 from java.lang import System
-from java.util import Properties
 
 from oracle.weblogic.deploy.aliases import VersionUtils
+from oracle.weblogic.deploy.util import OrderedProperties
 import wlsdeploy.exception.exception_helper as exception_helper
 
 from wlsdeploy.logging.platform_logger import PlatformLogger
@@ -76,34 +75,22 @@ def to_boolean(input_value):
 
 def load_properties(property_file, exception_type=None):
     """
-    Load the key=value properties file into a Properties object
-    and then store the properties in a dictionary.
+    Load the key=value properties file into an ordered property dictionary.
     :param property_file: Name of the property file to read
     :param exception_type: Throw the indicated tool exception
     :raise Tool exception if exception type included, or IOException if None
     :return: property dictionary
     """
     _method_name = 'load_properties'
-    prop_dict = dict()
-    props = Properties()
-    input_stream = None
     try:
-        input_stream = FileInputStream(property_file)
-        props.load(input_stream)
-        input_stream.close()
+        prop_dict = OrderedProperties.loadPyOrderedDict(property_file)
     except IOException, ioe:
-        if input_stream is not None:
-            input_stream.close()
         if exception_type is None:
             raise ioe
         ex = exception_helper.create_exception(exception_type, 'WLSDPLY-01721', property_file,
                                                ioe.getLocalizedMessage(), error=ioe)
         __logger.throwing(ex, class_name=_class_name, method_name=_method_name)
         raise ex
-
-    for key in props.keySet():
-        value = props.getProperty(key)
-        prop_dict[key] = value
 
     return prop_dict
 

@@ -31,3 +31,5 @@ release.properties
 documentation/**/docs
 .jython_cache
 .oca
+.codex
+
