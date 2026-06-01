@@ -41,11 +41,11 @@
         <snakeyaml.version>2.3</snakeyaml.version>  <!-- 2.4 requires JDK 8 -->
         <picocli.version>4.7.7</picocli.version>
         <sshj.version>0.40.0</sshj.version>
-        <slf4j.version>2.0.17</slf4j.version>
+        <slf4j.version>2.0.18</slf4j.version>
         <jzlib.version>1.1.3</jzlib.version>
         <asn.one.version>0.6.0</asn.one.version>
-        <jline.version>4.0.12</jline.version>
-        <junit.version>6.0.3</junit.version>
+        <jline.version>4.1.0</jline.version>
+        <junit.version>6.1.0</junit.version>
         <wdt.scm.repo.url>${env.WDT_SCM_REPO_URL}</wdt.scm.repo.url>
         <wdt.scm.repo.conn>${env.WDT_SCM_REPO_CONN}</wdt.scm.repo.conn>
 
@@ -185,7 +185,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.2</version>
+                    <version>3.6.3</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
