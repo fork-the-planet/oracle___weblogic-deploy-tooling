@@ -5,11 +5,11 @@
 googleAnalytics = "UA-129126578-2"
 
 baseURL = "/weblogic-deploy-tooling/"
-languageCode = "en-us"
+locale = "en-us"
 title = "WebLogic Deploy Tooling"
 
 # Change the default theme to be use when building the site with Hugo
-theme = "hugo-theme-relearn-8.3.0"
+theme = "hugo-theme-relearn-9.0.3"
 
 publishDir = "docs"
 
@@ -21,6 +21,9 @@ publishDir = "docs"
   hideAuthorDate = true
   # disable the copy to clipboard links
   disableInlineCopyToClipBoard = true
+  externalLinkTarget = "_blank"
+  linkTitle = "WebLogic\nDeploy Tooling"
+  logo = { src = "/images/logo.png", direction = "column" }
   themeVariant = "learn"
 
 [markup]
@@ -33,3 +36,6 @@ publishDir = "docs"
     [markup.goldmark.renderer]
       # Allow the <sup> tags omitted by the superscript extension.
       unsafe = true
+    [markup.goldmark.parser]
+      [markup.goldmark.parser.attribute]
+        block = true
