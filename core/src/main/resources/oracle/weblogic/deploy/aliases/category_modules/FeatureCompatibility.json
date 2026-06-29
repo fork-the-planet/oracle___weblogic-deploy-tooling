@@ -7,7 +7,7 @@
     "default_name_value": "${NO_NAME_0:%DOMAIN%}",
     "folders": {},
     "attributes": {
-        "JNDIBindingAuthorizationPolicyEnabled": [ {"version": "[15.1.2,)", "wlst_mode": "online", "wlst_name": "JNDIBindingAuthorizationPolicyEnabled", "wlst_path": "WP001", "default_value": false, "wlst_type": "boolean" } ],
+        "JndiBindingAuthorizationPolicyEnabled": [ {"version": "[15.1.2,)", "wlst_mode": "both", "wlst_name": "${Jndi:JNDI}BindingAuthorizationPolicyEnabled", "wlst_path": "WP001", "default_value": false, "wlst_type": "boolean" } ],
         "Notes": [ {"version": "[15.1.2,)", "wlst_mode": "both", "wlst_name": "Notes", "wlst_path": "WP001", "default_value": null, "wlst_type": "string" } ],
         "SerializedWorkContextMaximumSize": [ {"version": "[15.1.2,)", "wlst_mode": "both", "wlst_name": "SerializedWorkContextMaximumSize", "wlst_path": "WP001", "default_value": -1, "wlst_type": "integer" } ],
         "T3RouteOnlyToTrustedServersEnabled": [ {"version": "[15.1.2,)", "wlst_mode": "both", "wlst_name": "T3RouteOnlyToTrustedServersEnabled", "wlst_path": "WP001", "default_value": false, "wlst_type": "boolean" } ],
