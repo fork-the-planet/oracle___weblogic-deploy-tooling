@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2023, Oracle Corporation and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle Corporation and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 from java.lang import IllegalArgumentException
@@ -391,12 +391,12 @@ class JmsResourcesDiscoverer(Discoverer):
 
     def _add_foreign_server_binding(self, server_name, model_name, model_value):
         """
-        If the foreign server connection URL contains a file URI, then collect the file into the archive.
-        The attribute value will be updated to point to the location where the file will
+        If the foreign server connection URL contains a file URI, collect the referenced file or directory into the
+        archive. The attribute value will be updated to point to the location where the artifact will
         exist after the archive file is deployed.
         :param model_name: name of the foreign server connection URL name attribute
         :param model_value: containing the foreign connection URI value
-        :return: updated foreign server file value or original URL
+        :return: updated foreign server binding value or original URL
         """
         _method_name = '_add_foreign_server_binding'
         _logger.entering(server_name, model_name, model_value, class_name=_class_name, method_name=_method_name)
@@ -425,11 +425,15 @@ class JmsResourcesDiscoverer(Discoverer):
                                                                                       "foreignJMSServer" + server_name)
 
                         new_name = archive_file.addForeignServerFile(server_name, file_name)
-                        new_name = FILE_URI + self._model_context.tokenize_path(self._convert_path(new_name))
-                        _logger.info('WLSDPLY-06492', server_name, file_name, new_name, class_name=_class_name,
+                        is_directory = new_name.endswith('/')
+                        new_name = self._convert_path(new_name)
+                        if is_directory and not new_name.endswith('/'):
+                            new_name += '/'
+                        new_name = FILE_URI + self._model_context.tokenize_path(new_name)
+                        _logger.info('WLSDPLY-06493', server_name, file_name, new_name, class_name=_class_name,
                                      method_name=_method_name)
                     except (IllegalArgumentException, WLSDeployArchiveIOException), wioe:
-                        _logger.warning('WLSDPLY-06493', server_name, file_name, wioe.getLocalizedMessage(),
+                        _logger.warning('WLSDPLY-06492', server_name, file_name, wioe.getLocalizedMessage(),
                                         class_name=_class_name, method_name=_method_name)
                         new_name = None
 

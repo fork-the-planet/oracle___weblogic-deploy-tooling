@@ -1,5 +1,5 @@
 """
-Copyright (c) 2017, 2024, Oracle and/or its affiliates.
+Copyright (c) 2017, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 
 Module that handles SSH communication with remote machines.
@@ -239,7 +239,15 @@ class SSHContext(object):
             remote_host = self._ssh_client.getRemoteHostname()
             self._logger.info('WLSDPLY-32016', abs_source_path, remote_host, abs_target_path,
                               class_name=self._class_name, method_name=_method_name)
-            self._ssh_client.newSCPFileTransfer().download(abs_source_path, abs_target_path)
+            scp_transfer = self._ssh_client.newSCPFileTransfer()
+            if self.does_directory_exist(abs_source_path):
+                from net.schmizz.sshj.xfer import FileSystemFile
+
+                download_client = scp_transfer.newSCPDownloadClient()
+                download_client.setRecursiveMode(True)
+                download_client.copy(abs_source_path, FileSystemFile(abs_target_path))
+            else:
+                scp_transfer.download(abs_source_path, abs_target_path)
             self._logger.info('WLSDPLY-32017', abs_source_path, remote_host, abs_target_path,
                               class_name=self._class_name, method_name=_method_name)
         except IOException,ioe:

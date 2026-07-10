@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
  */
 package oracle.weblogic.deploy.tool.archive_helper.add;
@@ -19,7 +19,7 @@ import static oracle.weblogic.deploy.tool.ArchiveHelper.LOGGER_NAME;
 
 @Command(
     name = "jmsForeignServer",
-    header = "Add a JMS Foreign Server binding file to the archive file.",
+    header = "Add a JMS Foreign Server binding file or directory to the archive file.",
     description = "%nCommand-line options:"
 )
 public class AddJMSForeignServerCommand extends AddTypeCommandBase {
@@ -37,7 +37,7 @@ public class AddJMSForeignServerCommand extends AddTypeCommandBase {
     @Option(
         names = {"-source"},
         paramLabel = "<path>",
-        description = "File system path to the JMS Foreign Server binding to add",
+        description = "File system path to the JMS Foreign Server binding file or directory to add",
         required = true
     )
     private String sourcePath;

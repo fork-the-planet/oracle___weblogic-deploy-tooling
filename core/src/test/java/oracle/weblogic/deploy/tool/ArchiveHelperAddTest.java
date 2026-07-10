@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
  */
 package oracle.weblogic.deploy.tool;
@@ -56,6 +56,7 @@ import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.DOMAIN_LIB_
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.DOMAIN_LIB_FOO_JAR_DUP_CONTENTS;
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.FILE_STORES_FS1_CONTENTS;
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.FILE_STORES_FS1_DUP_CONTENTS;
+import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.FOREIGN_SERVERS_FS1_BINDING_DIRECTORY_CONTENTS;
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.FOREIGN_SERVERS_FS1_JNDI_PROPERTIES_CONTENTS;
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.FOREIGN_SERVERS_FS1_JNDI_PROPERTIES_DUP_CONTENTS;
 import static oracle.weblogic.deploy.tool.ArchiveHelperTestConstants.MIME_MAPPING_PROPERTIES_CONTENTS;
@@ -1855,6 +1856,32 @@ public class ArchiveHelperAddTest {
 
         assertEquals(ExitCode.OK, actual, "expected command to return " + ExitCode.OK);
         assertArchiveInExpectedState(LIST_FOREIGN_SERVERS, EMPTY_ARRAY, FOREIGN_SERVERS_FS1_JNDI_PROPERTIES_CONTENTS);
+    }
+
+    @Test
+    void testAddNewForeignServerBindingDirectory_ReturnsExpectedResult() throws Exception {
+        StringWriter outStringWriter = new StringWriter();
+        StringWriter errStringWriter = new StringWriter();
+        String[] args = new String[] {
+            "add",
+            "jmsForeignServer",
+            "-archive_file",
+            NEW_ARCHIVE_VALUE,
+            "-foreign_server_name",
+            "fs1",
+            "-source",
+            getSegregatedSourcePath(ArchiveEntryType.JMS_FOREIGN_SERVER, "fs1", "")
+        };
+
+        int actual;
+        try (PrintWriter out = new PrintWriter(outStringWriter);
+             PrintWriter err = new PrintWriter(errStringWriter)) {
+            actual = ArchiveHelper.executeCommand(out, err, args);
+        }
+
+        assertEquals(ExitCode.OK, actual, "expected command to return " + ExitCode.OK);
+        assertArchiveInExpectedState(LIST_FOREIGN_SERVERS, EMPTY_ARRAY,
+            FOREIGN_SERVERS_FS1_BINDING_DIRECTORY_CONTENTS);
     }
 
     @Test
