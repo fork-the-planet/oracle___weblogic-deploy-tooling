@@ -184,7 +184,7 @@ public class WLSDeployArchive {
     public static final String ARCHIVE_JMS_DIR = WLSDPLY_ARCHIVE_CONFIG_DIR_PREFIX + "jms";
 
     /**
-     * Top-level archive subdirectory where the JMS Foreign Server bindings files are stored and the
+     * Top-level archive subdirectory where the JMS Foreign Server bindings are stored and the
      * subdirectory to which they will be extracted.
      */
     public static final String ARCHIVE_JMS_FOREIGN_SERVER_DIR = ARCHIVE_JMS_DIR + ZIP_SEP + "foreignServer";
@@ -610,11 +610,11 @@ public class WLSDeployArchive {
     }
 
     /**
-     * Get the archive name for the foreign server binding file.
+     * Get the archive name for the foreign server binding file or directory.
      *
      * @param foreignServer The foreign server name used to segregate the directories
-     * @param configFile    The file name to add
-     * @return The location of the file in the archive to use in the model
+     * @param configFile    The file or directory name to add
+     * @return The location of the binding in the archive to use in the model
      */
     public static String getForeignServerArchivePath(String foreignServer, String configFile) {
         return getArchiveName(ARCHIVE_JMS_FOREIGN_SERVER_DIR + ZIP_SEP + foreignServer, configFile);
@@ -845,6 +845,38 @@ public class WLSDeployArchive {
     public String extractDirectory(String path, File extractToLocation) throws WLSDeployArchiveIOException {
         String result = FileUtils.getCanonicalFile(new File(extractToLocation, path)).getAbsolutePath();
         this.extractDirectoryFromZip(path, extractToLocation);
+        return result;
+    }
+
+    /**
+     * Extract the specified directory to the specified location using a different target directory name.  For example,
+     * if the path is wlsdeploy/foo and the extractPath is config/wlsdeploy/foo, the directory will be written to
+     * $DOMAIN_HOME/config/wlsdeploy/foo.
+     *
+     * @param path              the path into the archive file to extract
+     * @param extractToLocation the base directory to which to write the extracted directory
+     * @param extractPath       the path below extractToLocation to which to write the extracted directory
+     * @return the canonical extracted directory name
+     * @throws WLSDeployArchiveIOException if an error occurs reading the archive or writing the directory
+     * @throws IllegalArgumentException    if the path or extractPath is null or empty, or the extractToLocation
+     *                                     was not a valid, existing directory
+     */
+    public String extractDirectory(String path, File extractToLocation, String extractPath)
+        throws WLSDeployArchiveIOException {
+        final String METHOD = "extractDirectory";
+        LOGGER.entering(CLASS, METHOD, path, extractToLocation, extractPath);
+        validateNonEmptyString(path, "path", METHOD);
+        validateNonEmptyString(extractPath, "extractPath", METHOD);
+        validateExistingDirectory(extractToLocation, "extractToLocation", getArchiveFileName(), METHOD);
+
+        String archivePath = path.endsWith(ZIP_SEP) ? path.substring(0, path.length() - 1) : path;
+        String targetPath = extractPath.endsWith(ZIP_SEP) ? extractPath.substring(0, extractPath.length() - 1) :
+            extractPath;
+
+        String result = FileUtils.getCanonicalFile(new File(extractToLocation, targetPath)).getAbsolutePath();
+        this.extractDirectoryFromZip(archivePath, targetPath, extractToLocation);
+
+        LOGGER.exiting(CLASS, METHOD, result);
         return result;
     }
 
@@ -4136,17 +4168,17 @@ public class WLSDeployArchive {
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
-    //                        JMS foreign server binding file methods                            //
+    //                        JMS foreign server binding methods                                 //
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * Add a Foreign Server binding file to the archive.
+     * Add a Foreign Server binding file or directory to the archive.
      *
      * @param foreignServerName  the Foreign Server name used to segregate the directories
      * @param bindingPath        the file or directory to add
-     * @return the new location of the file to use in the model
+     * @return the new location of the file or directory to use in the model
      * @throws WLSDeployArchiveIOException if an error occurs while archiving the file
-     * @throws IllegalArgumentException    if the file does not exist or the foreignServerName is empty or null
+     * @throws IllegalArgumentException    if the path does not exist or the foreignServerName is empty or null
      */
     public String addForeignServerFile(String foreignServerName, String bindingPath)
         throws WLSDeployArchiveIOException {
@@ -4155,7 +4187,7 @@ public class WLSDeployArchive {
 
         validateNonEmptyString(foreignServerName, "foreignServerName", METHOD);
         File filePath = new File(bindingPath);
-        validateExistingFile(filePath, "bindingPath", getArchiveFileName(), METHOD);
+        validateExistingFile(filePath, "bindingPath", getArchiveFileName(), METHOD, true);
 
         String newName =
             addItemToZip(ARCHIVE_JMS_FOREIGN_SERVER_DIR + ZIP_SEP + foreignServerName, filePath);
@@ -4165,12 +4197,12 @@ public class WLSDeployArchive {
     }
 
     /**
-     * Replace a Foreign Server binding file in the archive.
+     * Replace a Foreign Server binding file or directory in the archive.
      *
      * @param foreignServerName the Foreign Server name used to segregate the directories
-     * @param bindingPath       the Foreign Server binding file name or an archive path
-     * @param sourceLocation the file system location of the new Foreign Server binding file to replace the existing one
-     * @return the archive path of the new Foreign Server binding file
+     * @param bindingPath       the Foreign Server binding name or archive path
+     * @param sourceLocation the file system location of the new Foreign Server binding to replace the existing one
+     * @return the archive path of the new Foreign Server binding
      * @throws WLSDeployArchiveIOException if an IOException occurred while reading or writing changes
      * @throws IllegalArgumentException    if the file passed in does not exist or the bindingPath is empty
      */
@@ -4203,7 +4235,7 @@ public class WLSDeployArchive {
 
         // If we get here, archivePath should never be null!
         //
-        getZipFile().removeZipEntry(archivePath);
+        getZipFile().removeZipEntries(archivePath);
         String newName = addForeignServerFile(computedForeignServerName, sourceLocation);
 
         LOGGER.exiting(CLASS, METHOD, newName);
@@ -4211,11 +4243,11 @@ public class WLSDeployArchive {
     }
 
     /**
-     * Extract the named Foreign Server binding file to the domain home location.
+     * Extract the named Foreign Server binding file or directory to the domain home location.
      *
      * @param foreignServerName            the name of the JMS Foreign Server used to segregate the bindings
-     * @param bindingPath                  the name of the binding file
-     * @param domainHome                   the existing directory location to write the file
+     * @param bindingPath                  the name of the binding file or directory
+     * @param domainHome                   the existing directory location to write the binding
      * @throws WLSDeployArchiveIOException if an IOException occurred while reading the archive or writing the file
      * @throws IllegalArgumentException    if the domainHome directory does not exist or
      *                                     the foreignServerName or bindingPath is empty
@@ -4238,19 +4270,25 @@ public class WLSDeployArchive {
             archivePath = ARCHIVE_JMS_FOREIGN_SERVER_DIR + ZIP_SEP + foreignServerName + ZIP_SEP + bindingPath;
         }
 
-        extractFileFromZip(archivePath, domainHome);
+        if (containsPath(archivePath)) {
+            String directoryPath = archivePath.endsWith(ZIP_SEP) ?
+                archivePath.substring(0, archivePath.length() - 1) : archivePath;
+            extractDirectoryFromZip(directoryPath, domainHome);
+        } else {
+            extractFileFromZip(archivePath, domainHome);
+        }
 
         LOGGER.exiting(CLASS, METHOD);
     }
 
     /**
-     * Remove the named JMS Foreign Server bindings file from the archive file.  If this is the only entry
+     * Remove the named JMS Foreign Server binding file or directory from the archive file. If this is the only entry
      * in the archive file directory, the directory entry will also be removed, if present.
      *
-     * @param foreignServer     the name of the JMS Foreign Server used for segregating the bindings files
-     * @param bindingsFileName  the name of the JMS Foreign Server bindings file
+     * @param foreignServer     the name of the JMS Foreign Server used for segregating the bindings
+     * @param bindingsFileName  the name of the JMS Foreign Server binding file or directory
      * @return the number of zip entries removed from the archive
-     * @throws WLSDeployArchiveIOException  if the bindings file is not present or an IOException
+     * @throws WLSDeployArchiveIOException  if the binding is not present or an IOException
      *                                      occurred while reading the archive or writing the file
      * @throws IllegalArgumentException     if the foreignServer or bindingsFileName is null or empty
      */
@@ -4260,14 +4298,14 @@ public class WLSDeployArchive {
     }
 
     /**
-     * Remove the named JMS Foreign Server bindings file from the archive file.  If this is the only entry
+     * Remove the named JMS Foreign Server binding file or directory from the archive file. If this is the only entry
      * in the archive file directory, the directory entry will also be removed, if present.
      *
-     * @param foreignServer     the name of the JMS Foreign Server used for segregating the bindings files
-     * @param bindingsFileName  the name of the JMS Foreign Server bindings file
+     * @param foreignServer     the name of the JMS Foreign Server used for segregating the bindings
+     * @param bindingsFileName  the name of the JMS Foreign Server binding file or directory
      * @param silent            If false, a WLSDeployArchiveIOException is thrown is the named item does not exist
      * @return the number of zip entries removed from the archive
-     * @throws WLSDeployArchiveIOException  if the bindings file is not present (and silent = false) or
+     * @throws WLSDeployArchiveIOException  if the binding is not present (and silent = false) or
      *                                      an IOException occurred while reading the archive or writing the file
      * @throws IllegalArgumentException     if the foreignServer or bindingsFileName is null or empty
      */
@@ -5955,7 +5993,6 @@ public class WLSDeployArchive {
             case COHERENCE_CONFIG:
             case DOMAIN_BIN:
             case DOMAIN_LIB:
-            case JMS_FOREIGN_SERVER:
             case MIME_MAPPING:
             case NODE_MANAGER_KEY_STORE:
             case SAML2_DATA:
@@ -5963,6 +6000,10 @@ public class WLSDeployArchive {
             case SERVER_KEYSTORE:
             case SHLIB_PLAN:
                 result = FileOrDirectoryType.FILE_ONLY;
+                break;
+
+            case JMS_FOREIGN_SERVER:
+                result = FileOrDirectoryType.EITHER;
                 break;
 
             default:

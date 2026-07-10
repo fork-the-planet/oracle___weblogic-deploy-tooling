@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
  */
 package oracle.weblogic.deploy.tool.archive_helper.remove;
@@ -17,7 +17,7 @@ import static oracle.weblogic.deploy.tool.ArchiveHelper.LOGGER_NAME;
 
 @Command(
     name = "jmsForeignServer",
-    header = "Remove JMS Foreign Server bindings file from the archive file.",
+    header = "Remove a JMS Foreign Server binding file or directory from the archive file.",
     description = "%nCommand-line options:"
 )
 public class RemoveJMSForeignServerCommand extends RemoveTypeCommandBase {
@@ -34,7 +34,7 @@ public class RemoveJMSForeignServerCommand extends RemoveTypeCommandBase {
 
     @Option(
         names = {"-name"},
-        description = "Name of the JMS Foreign Server bindings file to be removed from the archive file",
+        description = "Name of the JMS Foreign Server binding file or directory to remove from the archive file",
         required = true
     )
     private String name;

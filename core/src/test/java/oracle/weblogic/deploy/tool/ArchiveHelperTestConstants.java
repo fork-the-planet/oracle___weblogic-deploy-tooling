@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
  */
 package oracle.weblogic.deploy.tool;
@@ -287,6 +287,11 @@ public class ArchiveHelperTestConstants {
 
     static final String[] FOREIGN_SERVERS_FS1_JNDI_PROPERTIES_DUP_CONTENTS = new String[] {
         WLSDeployArchive.ARCHIVE_JMS_FOREIGN_SERVER_DIR + "/fs1/jndi(1).properties"
+    };
+
+    static final String[] FOREIGN_SERVERS_FS1_BINDING_DIRECTORY_CONTENTS = new String[] {
+        WLSDeployArchive.ARCHIVE_JMS_FOREIGN_SERVER_DIR + "/fs1/fs1/",
+        WLSDeployArchive.ARCHIVE_JMS_FOREIGN_SERVER_DIR + "/fs1/fs1/jndi.properties"
     };
 
     static final String[] FOREIGN_SERVERS_FS1_CONTENTS = mergeStringArrays(

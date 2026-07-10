@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates.
+ * Copyright (c) 2023, 2026, Oracle and/or its affiliates.
  * Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
  */
 package oracle.weblogic.deploy.tool.archive_helper.extract;
@@ -17,13 +17,13 @@ import static oracle.weblogic.deploy.tool.ArchiveHelper.LOGGER_NAME;
 
 @Command(
     name = "jmsForeignServer",
-    header = "Extract JMS Foreign Server binding file from the archive file.",
+    header = "Extract a JMS Foreign Server binding file or directory from the archive file.",
     description = "%nCommand-line options:"
 )
 public class ExtractJMSForeignServerCommand extends ExtractTypeCommandBase {
     private static final String CLASS = ExtractJMSForeignServerCommand.class.getName();
     private static final PlatformLogger LOGGER = WLSDeployLogFactory.getLogger(LOGGER_NAME);
-    private static final String TYPE = "JMS Foreign Server binding file";
+    private static final String TYPE = "JMS Foreign Server binding";
     private static final String ERROR_KEY = "WLSDPLY-30051";
 
     @Option(
@@ -35,7 +35,7 @@ public class ExtractJMSForeignServerCommand extends ExtractTypeCommandBase {
 
     @Option(
         names = {"-name"},
-        description = "Name of the JMS Foreign Server binding file to be extracted from the archive file",
+        description = "Name of the JMS Foreign Server binding file or directory to extract from the archive file",
         required = true
     )
     private String name;
