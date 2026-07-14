@@ -8,8 +8,10 @@ import sets
 from java.io import File
 from java.lang import IllegalArgumentException
 from java.lang import IllegalStateException
+from java.nio.file import CopyOption
 from java.nio.file import Files
 from java.nio.file import StandardCopyOption
+from org.python.modules import jarray
 
 from oracle.weblogic.deploy.util import FileUtils
 from oracle.weblogic.deploy.util import WLSDeployArchive
@@ -668,8 +670,8 @@ class ArchiveList(object):
         base_name = os.path.basename(source_file_name)
         target_file_name = os.path.join(target_directory, base_name)
         try:
-            Files.copy(File(source_file_name).toPath(), File(target_file_name).toPath(),
-                       StandardCopyOption.REPLACE_EXISTING)
+            copy_options = jarray.array([StandardCopyOption.REPLACE_EXISTING], CopyOption)
+            Files.copy(File(source_file_name).toPath(), File(target_file_name).toPath(), copy_options)
         except Exception, e:
             ex = exception_helper.create_exception(self.__exception_type, 'WLSDPLY-19312', source_file_name,
                                                    target_file_name, e.getLocalizedMessage(), error=e)
