@@ -1,17 +1,21 @@
 """
-Copyright (c) 2018, 2025, Oracle and/or its affiliates.
+Copyright (c) 2018, 2026, Oracle and/or its affiliates.
 Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl.
 """
 import copy
 import os
 import re
-import shutil
 
+import java.io.File as File
 import java.io.FileInputStream as FileInputStream
 import java.io.FileOutputStream as FileOutputStream
 import java.io.IOException as IOException
 import java.lang.IllegalArgumentException as IllegalArgumentException
+import java.nio.file.CopyOption as CopyOption
+import java.nio.file.Files as Files
+import java.nio.file.StandardCopyOption as StandardCopyOption
 import java.util.Properties as Properties
+from org.python.modules import jarray
 
 import oracle.weblogic.deploy.aliases.AliasException as AliasException
 import oracle.weblogic.deploy.json.JsonException as JsonException
@@ -217,7 +221,9 @@ class VariableInjector(object):
                         # copy the original file first
                         append = True
                         if variable_file_location != new_variable_file_location:
-                            shutil.copyfile(variable_file_location, new_variable_file_location)
+                            copy_options = jarray.array([StandardCopyOption.REPLACE_EXISTING], CopyOption)
+                            Files.copy(File(variable_file_location).toPath(), File(new_variable_file_location).toPath(),
+                                       copy_options)
                         self._filter_duplicate_properties(new_variable_file_location, variable_dictionary)
                     variable_file_location = new_variable_file_location
 
